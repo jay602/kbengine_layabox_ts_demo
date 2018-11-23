@@ -33,12 +33,9 @@ P B9680947 vscroll$up.png
 P 7E990267 vscroll.png
 P E466EB1C vslider$bar.png
 P 2BFF7046 vslider.png
-D prefab
-R 80AF25E8 Buttle.prefab
-R 61FBA299 DropBox.prefab
 D sound
-R 7E35C360 destroy.mp3
-R 0891C052 hit.mp3
+R 1DC3ABD8 destroy.wav
+R FF0B6E8D hit.wav
 D test
 P 1DFA6065 b1.png
 P 90AE1DE1 b2.png

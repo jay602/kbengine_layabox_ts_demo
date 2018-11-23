@@ -1,5 +1,494 @@
-namespace KBEngine 
+export namespace KBEngine 
 {
+    export const enum DEBUGLEVEL
+	{
+		DEBUG = 0,
+		INFO,
+		WARNING,
+		ERROR,
+
+		NOLOG,  // 放在最后面，使用这个时表示不输出任何日志（!!!慎用!!!）
+    }
+    
+    export class Dbg
+    {
+        public static debugLevel:DEBUGLEVEL = DEBUGLEVEL.DEBUG;
+
+        static getHead(): string
+        {
+            let now: Date = new Date();
+            return "[" + now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate() + " " + now.getHours() 
+            + ":" + now.getMinutes() + ":" + now.getSeconds() + " " + now.getMilliseconds() + "] ";
+        }
+
+        static DEBUG_MSG(msg: string, ...params: any[]): void
+        {
+            if(DEBUGLEVEL.DEBUG >= this.debugLevel)
+            {
+                params.unshift(this.getHead(), msg);
+                console.debug.apply(this, params);
+            }
+        }
+
+        static INFO_MSG(msg: string, ...params: any[]): void
+        {
+            if(DEBUGLEVEL.INFO >= this.debugLevel)
+            {
+                params.unshift(this.getHead(), msg);
+                console.info.apply(this, params);
+            }
+        }
+
+        static WARNING_MSG(msg: string, ...params: any[]): void
+        {
+            if(DEBUGLEVEL.WARNING >= this.debugLevel)
+            {
+                params.unshift(this.getHead(), msg);
+                console.warn.apply(this, params);
+            }
+        }
+    
+        static ERROR_MSG(msg: string, ...params: any[]): void
+        {
+            if(DEBUGLEVEL.ERROR >= this.debugLevel)
+            {
+                params.unshift(this.getHead(), msg);
+                console.error.apply(this, params);
+            }
+        }
+    
+        static ASSERT(condition?: boolean, message?: string, ...data: any[]): void
+        {
+            // 使用抛出异常的方式来实现类似断言功能
+            if(!condition)
+            {
+                throw(new Error(message));
+            }
+
+            // note：微信小游戏平台不支持，手册中提到的CC_WECHATGAME未定义，无法区分是否微信小游戏平台，
+            // console.assert(condition, message, ...data);
+            // 一些平台如小程序上可能没有assert
+            // if(console.assert == undefined)
+            // {
+            //     console.assert = function(bRet, s)
+            //     {
+            //         if(!(bRet)) {
+            //             ERROR_MSG(s);
+            //         }
+            //     }
+            // }
+        }
+    }
+
+
+    export const enum KBEventTypes 
+    {
+        // Create new account.
+        // <para> param1(string): accountName</para>
+        // <para> param2(string): password</para>
+        // <para> param3(bytes): datas // Datas by user defined. Data will be recorded into the KBE account database, you can access the datas through the script layer. If you use third-party account system, datas will be submitted to the third-party system.</para>
+        createAccount = "createAccount",
+
+        // Login to server.
+        // <para> param1(string): accountName</para>
+        // <para> param2(string): password</para>
+        // <para> param3(bytes): datas // Datas by user defined. Data will be recorded into the KBE account database, you can access the datas through the script layer. If you use third-party account system, datas will be submitted to the third-party system.</para>
+        login = "login",
+
+        // Logout to baseapp, called when exiting the client.	
+        logout = "logout",
+
+        // Relogin to baseapp.
+        reloginBaseapp = "reloginBaseapp",
+
+        // Request server binding account Email.
+        // <para> param1(string): emailAddress</para>
+        bindAccountEmail = "bindAccountEmail",
+
+        // Request to set up a new password for the account. Note: account must be online.
+        // <para> param1(string): old_password</para>
+        // <para> param2(string): new_password</para>
+        newPassword = "newPassword",
+
+        // ------------------------------------连接相关------------------------------------
+
+        // Kicked of the current server.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onKicked = "onKicked",
+
+        // Disconnected from the server.
+        onDisconnected = "onDisconnected",
+
+        // Status of connection server.
+        // <para> param1(bool): success or fail</para>
+        onConnectionState = "onConnectionState",
+
+        // ------------------------------------logon相关------------------------------------
+
+        // Create account feedback results.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        // <para> param2(bytes): datas. // If you use third-party account system, the system may fill some of the third-party additional datas. </para>
+        onCreateAccountResult = "onCreateAccountResult",
+
+        // Engine version mismatch.
+        // <para> param1(string): clientVersion
+        // <para> param2(string): serverVersion
+        onVersionNotMatch = "onVersionNotMatch",
+
+        // script version mismatch.
+        // <para> param1(string): clientScriptVersion
+        // <para> param2(string): serverScriptVersion
+        onScriptVersionNotMatch = "onScriptVersionNotMatch",
+
+        // Login failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onLoginFailed = "onLoginFailed",
+
+        // Login to baseapp.
+        onLoginBaseapp = "onLoginBaseapp",
+
+        // Login baseapp failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onLoginBaseappFailed = "onLoginBaseappFailed",
+
+        // Relogin to baseapp.
+        onReloginBaseapp = "onReloginBaseapp",
+
+        // Relogin baseapp success.
+        onReloginBaseappSuccessfully = "onReloginBaseappSuccessfully",
+
+        // Relogin baseapp failed.
+        // <para> param1(uint16): retcode. // server_errors</para>
+        onReloginBaseappFailed = "onReloginBaseappFailed",
+
+        // ------------------------------------实体cell相关事件------------------------------------
+
+        // Entity enter the client-world.
+        // <para> param1: Entity</para>
+        onEnterWorld = "onEnterWorld",
+
+        // Entity leave the client-world.
+        // <para> param1: Entity</para>
+        onLeaveWorld = "onLeaveWorld",
+
+        // Player enter the new space.
+        // <para> param1: Entity</para>
+        onEnterSpace = "onEnterSpace",
+
+        // Player leave the space.
+        // <para> param1: Entity</para>
+        onLeaveSpace = "onLeaveSpace",
+
+        // Sets the current position of the entity.
+        // <para> param1: Entity</para>
+        set_position = "set_position",
+
+        // Sets the current direction of the entity.
+        // <para> param1: Entity</para>
+        set_direction = "set_direction",
+
+        // The entity position is updated, you can smooth the moving entity to new location.
+        // <para> param1: Entity</para>
+        updatePosition = "updatePosition",
+
+        // The current space is specified by the geometry mapping.
+        // Popular said is to load the specified Map Resources.
+        // <para> param1(string): resPath</para>
+        addSpaceGeometryMapping = "addSpaceGeometryMapping",
+
+        // Server spaceData set data.
+        // <para> param1(int32): spaceID</para>
+        // <para> param2(string): key</para>
+        // <para> param3(string): value</para>
+        onSetSpaceData = "onSetSpaceData",
+
+        // Start downloading data.
+        // <para> param1(int32): rspaceID</para>
+        // <para> param2(string): key</para>
+        onDelSpaceData = "onDelSpaceData",
+
+        // Triggered when the entity is controlled or out of control.
+        // <para> param1: Entity</para>
+        // <para> param2(bool): isControlled</para>
+        onControlled = "onControlled",
+
+        // Lose controlled entity.
+        // <para> param1: Entity</para>
+        onLoseControlledEntity = "onLoseControlledEntity",
+
+        // ------------------------------------数据下载相关------------------------------------
+
+        // Start downloading data.
+        // <para> param1(uint16): resouce id</para>
+        // <para> param2(uint32): data size</para>
+        // <para> param3(string): description</para>
+        onStreamDataStarted = "onStreamDataStarted",
+
+        // Receive data.
+        // <para> param1(uint16): resouce id</para>
+        // <para> param2(bytes): datas</para>
+        onStreamDataRecv = "onStreamDataRecv",
+
+        // The downloaded data is completed.
+        // <para> param1(uint16): resouce id</para>
+        onStreamDataCompleted = "onStreamDataCompleted",
+    }
+
+    class EventInfo
+    {
+        readonly classinst : any ;
+        readonly callbackfn : Function ;
+
+        constructor(classinst: any, callbackfn : Function) {
+            this.classinst = classinst;
+            this.callbackfn = callbackfn;
+        }
+    }
+
+    class FiredEvent
+    {
+        readonly evtName: string;
+        readonly evtInfo: EventInfo;
+        readonly args: any;
+
+        constructor(evtName: string, evtInfo: EventInfo, args: any) {
+            this.evtName = evtName;
+            this.evtInfo = evtInfo;
+            this.args = args;
+        }
+    }
+
+    export class KBEvent
+    {
+        private static  _events: any = {};
+        private static  _isPause: boolean = false;
+        private static _firedEvents: Array<FiredEvent> = [];
+
+        static register(evtName: string, classinst: any, strCallback: string): void
+        {
+            let callbackfn = classinst[strCallback];
+
+            if(callbackfn == undefined)
+            {
+                Dbg.ERROR_MSG('KBEngine.KBEvent::fire: not found strCallback(' + classinst  + ")!"+strCallback);
+                return;
+            }
+
+            let evtlst = this._events[evtName];  
+            if(evtlst == undefined)
+            {
+                evtlst = [];
+                this._events[evtName] = evtlst;
+            }
+
+            let info = new EventInfo(classinst, callbackfn);
+            evtlst.push(info);
+        }
+
+        static deregisterAll(classinst: any): void
+        {
+            for(var itemkey in this._events)
+            {
+                this.deregister(itemkey, classinst);
+            }
+        }
+
+        static deregister(evtName: string, classinst: any): void
+        {
+            let evtlst: Array<EventInfo> = this._events[evtName];
+            if(evtlst == undefined)
+            {
+                Dbg.ERROR_MSG("KBEvent::deregister:cant find event by name(%s).", evtName);
+                return;
+            }
+
+            while(true)
+            {
+                var found = false;
+                for(var i=0; i<evtlst.length; i++)
+                {
+                    var info = evtlst[i];
+                    if(info.classinst == classinst)
+                    {
+                        evtlst.splice(i, 1);
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if(!found)
+                    break;
+            }
+
+            this.removeFiredEvent(evtName, classinst);
+        }
+
+        static fire(evtName: string, ...params: any[]): void
+        {
+            let evtlst: Array<EventInfo> = this._events[evtName];
+            if(evtlst == undefined)
+            {
+                Dbg.ERROR_MSG("KBEvent::Fire:cant find event by name(%s).", evtName);
+                return;
+            }
+
+            for(let info of evtlst)
+            {
+                try
+                {
+                    if(!this._isPause)
+                    {
+                        info.callbackfn.apply(info.classinst, params);
+                    }
+                    else
+                    {
+                        let firedEvent = new FiredEvent(evtName, info, params);
+                        this._firedEvents.push(firedEvent);
+                    }
+                    
+                }
+                catch(e)
+                {
+                    Dbg.ERROR_MSG("KBEvent::Fire(%s):%s", evtName, e);
+                }
+            }
+        }
+
+        static pause(): void
+        {
+            this._isPause = true;
+        }
+
+        static resume(): void
+        {
+            this._isPause = false;
+
+            let firedEvents: Array<FiredEvent> = this._firedEvents;
+            Dbg.INFO_MSG("resume");
+            while(firedEvents.length > 0)
+            {
+                var evt = firedEvents.shift();
+                var info = evt.evtInfo;
+                var args = evt.args;
+                Dbg.INFO_MSG("resume evtname: " + evt.evtName);
+                if(args.length < 1)
+                {
+                    info.callbackfn.apply(info.classinst);
+                }
+                else
+                {
+                    info.callbackfn.apply(info.classinst, args);
+                }
+            }
+        }
+
+        static removeAllFiredEvent(classinst: any): void
+        {
+            this.removeFiredEvent("", classinst);
+        }
+
+        static removeFiredEvent(evtName: string, classinst: any): void
+        {
+            let firedEvents:Array<FiredEvent> = this._firedEvents;
+            while(true)
+            {
+                var found = false;
+                for(var i=0; i<firedEvents.length; i++)
+                {
+                    var evt = firedEvents[i];
+                    if((evtName == "" || evt.evtName == evtName) && evt.evtInfo.classinst == classinst)
+                    {
+                        firedEvents.splice(i, 1);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if(!found)
+                    break;
+            }
+        }
+    }
+
+    export class KBEngineArgs
+    {
+        public address: string = "127.0.0.1";
+        public port: number = 20013;
+        public serverHeartbeatTick: number = 100;
+        public clientType: number = 5;
+        public isOnInitCallPropertysSetMethods: boolean = true;
+        public isWss: boolean = false;
+    }
+
+    export class NetworkInterface
+    {
+        private socket: WebSocket = undefined;
+        private onOpenCB: Function = undefined;
+
+        public connectTo(addr: string, callbackFunc?: (event:Event)=>any): void
+        {
+            try
+            {
+                this.socket = new WebSocket(addr);
+                Dbg.ERROR_MSG("NetworkInterface::connectTo:Init socket");
+            }
+            catch(e)
+            {
+                Dbg.ERROR_MSG("NetworkInterface::connectTo:Init socket error:" + e);
+                KBEvent.fire("onConnectionState", false);
+                return;
+            }
+
+            this.socket.binaryType = "arraybuffer";
+
+            this.socket.onerror = this.onerror;
+            this.socket.onclose = this.onclose;
+            this.socket.onmessage = this.onmessage;
+            this.socket.onopen = this.onopen;
+            if(callbackFunc)
+            {
+                this.onOpenCB = callbackFunc;
+            }
+        }
+
+        close()
+        {
+           
+        }
+
+        send(buffer: ArrayBuffer)
+        {
+            
+        }
+
+        private onopen = (event: MessageEvent) =>
+        {
+            Dbg.ERROR_MSG("NetworkInterface::onopen:success!");
+            if(this.onOpenCB)
+            {
+                this.onOpenCB(event);
+                this.onOpenCB = undefined;
+            }
+        }
+    
+        private onerror = (event: MessageEvent) =>
+        {
+            // KBEDebug.DEBUG_MSG("NetworkInterface::onerror:...!");
+            // KBEEvent.Fire("onNetworkError", event);
+        }
+
+        private onmessage = (event: MessageEvent) =>
+        {
+            
+        }
+
+        private onclose = () =>
+        {
+            // KBEDebug.DEBUG_MSG("NetworkInterface::onclose:...!");
+            // KBEEvent.Fire("onDisconnected");
+        }
+    }
+
     export class KBEngineApp
     {
         public static app: KBEngineApp = undefined;

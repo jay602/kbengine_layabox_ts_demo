@@ -12,4 +12,4 @@ export module ui.test {
             this.loadScene("test/TestScene");
         }
     }
-}
+}

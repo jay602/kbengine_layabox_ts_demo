@@ -1,5 +1,6 @@
 import { ui } from "./../ui/layaMaxUI";
 import GameControl from "./GameControl"
+import {KBEngine} from "../kbengine_ts_plugins/KBEngine"
 /**
  * 本示例采用非脚本的方式实现，而使用继承页面基类，实现页面逻辑。在IDE里面设置场景的Runtime属性即可和场景进行关联
  * 相比脚本方式，继承式页面类，可以直接使用页面定义的属性（通过IDE内var属性定义），比如this.tipLbll，this.scoreLbl，具有代码提示效果
@@ -24,6 +25,12 @@ export default class GameUI extends ui.test.TestSceneUI {
         this._control = this.getComponent(GameControl);
         //点击提示文字，开始游戏
         this.tipLbll.on(Laya.Event.CLICK, this, this.onTipClick);
+
+        let args = new KBEngine.KBEngineArgs(); 
+        args.address = "127.0.0.1";
+        args.port = 20013;
+        let app = new KBEngine.KBEngineApp(args);
+        KBEngine.KBEvent.fire("login", "loginName", "123456", "");     
     }
 
     onTipClick(e: Laya.Event): void {
