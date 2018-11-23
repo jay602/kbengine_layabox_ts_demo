@@ -80,7 +80,6 @@ export namespace KBEngine
         }
     }
 
-
     export const enum KBEventTypes 
     {
         // Create new account.
@@ -420,7 +419,7 @@ export namespace KBEngine
         public isWss: boolean = false;
     }
 
-    export class NetworkInterface
+    class NetworkInterface
     {
         private socket: WebSocket = undefined;
         private onOpenCB: Function = undefined;
