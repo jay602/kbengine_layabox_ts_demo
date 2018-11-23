@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "module": "amd",
+        "noImplicitAny": true,
+        "removeComments": true, 
+        "preserveConstEnums": true, 
+        "target": "es6", 
+        "outFile": "./built/out.js", 
+        "sourceMap": true
+    },
+
+    "files": [
+        "Dbg.ts",
+        "KBEventTypes.ts",
+        "KBEvent.ts",
+        "KBEngineArgs.ts",
+        "NetworkInterface.ts",
+        "KBEngine.ts",
+        "test.ts",
+    ]
+}
