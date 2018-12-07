@@ -409,15 +409,7 @@ export namespace KBEngine
         }
     }
 
-    export class KBEngineArgs
-    {
-        public address: string = "127.0.0.1";
-        public port: number = 20013;
-        public serverHeartbeatTick: number = 100;
-        public clientType: number = 5;
-        public isOnInitCallPropertysSetMethods: boolean = true;
-        public isWss: boolean = false;
-    }
+    
 
     class NetworkInterface
     {
@@ -486,6 +478,151 @@ export namespace KBEngine
             // KBEDebug.DEBUG_MSG("NetworkInterface::onclose:...!");
             // KBEEvent.Fire("onDisconnected");
         }
+    }
+
+    class PackFloatXType
+    {
+        private _unionData: ArrayBuffer;
+        fv: Float32Array;
+        uv: Uint32Array;
+        iv: Int32Array;
+
+        constructor()
+        {
+            this._unionData = new ArrayBuffer(4);
+            this.fv = new Float32Array(this._unionData, 0, 1);
+            this.uv = new Uint32Array(this._unionData, 0, 1);
+            this.iv = new Int32Array(this._unionData, 0, 1);
+        }
+    }
+
+    class INT64
+    {
+        low: number;
+        high: number;
+        sign: number = 1;
+
+        constructor(p_low: number, p_high: number)
+        {
+            this.low = p_low;
+            this.high = p_high;
+            
+            if(p_high >= 2147483648)
+            {
+                this.sign = -1;
+                this.low = (4294967296 - this.low) & 0xffffffff;
+                if(p_low > 0)
+                {
+                    this.high = 4294967295 - this.high;
+                }
+                else
+                {
+                    this.high = 4294967296 - this.high;
+                }
+            }
+        }
+    }
+
+    class UINT64
+    {
+        low: number;
+        high: number;
+
+        constructor(p_low: number, p_high: number)
+        {
+            this.low = p_low >>> 0;
+            this.high = p_high;
+        }
+    }
+
+    class MemoryStream
+    {
+        rpos: number = 0;
+        wpos: number = 0;
+        private buffer: ArrayBuffer;
+
+        constructor(size_or_buffer: number | ArrayBuffer)
+        {
+            if(size_or_buffer instanceof ArrayBuffer)
+            {
+                this.buffer = size_or_buffer;
+            }
+            else
+            {
+                this.buffer = new ArrayBuffer(size_or_buffer);
+            }
+        }
+
+        space(): number
+        {
+            return this.buffer.byteLength - this.wpos;
+        }
+
+        readInt8(): number
+        {
+            let buf = new Int8Array(this.buffer, this.rpos);
+            this.rpos += 1;
+            return buf[0];
+        }
+
+        readUint8(): number
+        {
+            let buf = new Uint8Array(this.buffer, this.rpos);
+            this.rpos += 1;
+            return buf[0];
+        }
+
+        readUint16(): number
+        {
+            let buf = new Uint8Array(this.buffer, this.rpos);
+            this.rpos += 2;
+            return ((buf[1] & 0xff) << 8) + (buf[0] & 0xff);
+        }
+
+        readInt16(): number
+        {
+            let value = this.readUint16();
+            if(value >= 32768)
+                value -= 65536;
+            return value;
+        }
+
+        readUint32(): number
+        {
+            let buf = new Uint8Array(this.buffer, this.rpos);
+            this.rpos += 4;
+    
+            return (buf[3] << 24) + (buf[2] << 16) + (buf[1] << 8) + buf[0];
+        }
+    
+        readInt32(): number
+        {
+            let value = this.readUint32();
+            if(value >= 2147483648)
+                value -= 4294967296;
+            return value;
+        }
+
+        readUint64(): UINT64
+        {
+            return new UINT64(this.readUint32(), this.readUint32());
+        }
+
+        readInt64(): INT64
+        {
+            return new INT64(this.readUint32(), this.readUint32());
+        }
+
+    }
+
+    export class KBEngineArgs
+    {
+        public address: string = "127.0.0.1";
+        public port: number = 20013;
+        public serverHeartbeatTick: number = 100;
+        public clientType: number = 5;
+        public isOnInitCallPropertysSetMethods: boolean = true;
+        public isWss: boolean = false;
     }
 
     export class KBEngineApp
@@ -704,9 +841,25 @@ export namespace KBEngine
         private onOpenLoginapp_login(event: MessageEvent) 
         {
             Dbg.DEBUG_MSG("KBEngineApp::onOpenLoginapp_login:success to %s.", this.serverAddress);
-            
+            KBEvent.fire(KBEventTypes.onConnectionState, true);
+
             this.currserver = "loginapp";
             this.currstate = "login";
+
+            if(!this.loginappMessageImported)
+            {
+                Dbg.INFO_MSG("KBEngineApp::onOpenLoginapp_login: start importClientMessages ...");
+                KBEvent.fire("Loginapp_importClientMessages");
+            }
+            else
+            {
+                this.onImportClientMessagesCompleted();
+            }
+        }
+
+        private onImportClientMessagesCompleted()
+        {
+            
         }
     }
 }
