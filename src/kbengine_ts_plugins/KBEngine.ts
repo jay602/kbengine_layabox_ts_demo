@@ -23,17 +23,18 @@ export namespace KBEngine
     /*-----------------------------------------------------------------------------------------
 												global
     -----------------------------------------------------------------------------------------*/
-    const PACKET_MAX_SIZE           = 1500;
-    const PACKET_MAX_SIZE_TCP	    = 1460;
-    const PACKET_MAX_SIZE_UDP	    = 1472;
+    const PACKET_MAX_SIZE: number           = 1500;
+    const PACKET_MAX_SIZE_TCP: number	    = 1460;
+    const PACKET_MAX_SIZE_UDP: number	    = 1472;
 
-    const MESSAGE_ID_LENGTH		    = 2;
-    const MESSAGE_LENGTH_LENGTH	    = 2;
-    const MESSAGE_LENGTH1_LENGTH    = 4;
-    const MESSAGE_MAX_SIZE		    = 65535;
+    const MESSAGE_ID_LENGTH: number		    = 2;
+    const MESSAGE_LENGTH_LENGTH: number	    = 2;
+    const MESSAGE_LENGTH1_LENGTH: number    = 4;
+    const MESSAGE_MAX_SIZE: number		    = 65535;
 
-    const CLIENT_NO_FLOAT		    = 0;
-    const KBE_FLT_MAX			    = 3.402823466e+38;
+    const CLIENT_NO_FLOAT: number		    = 0;
+    const KBE_FLT_MAX: number			    = 3.402823466e+38;
+    const MAX_BUFFER: number                = 1460 * 4;
 
     export const enum DEBUGLEVEL
 	{
@@ -972,6 +973,44 @@ export namespace KBEngine
         }
     }
 
+
+     /*-----------------------------------------------------------------------------------------
+												messages
+    -----------------------------------------------------------------------------------------*/
+    class Message
+    {
+        id: number;
+        name: string;
+        length: number;
+        argsType: number;
+        args: Array<any> = new Array<any>();
+        handler: Function = undefined;
+    }
+
+
+    /*-----------------------------------------------------------------------------------------
+												bundle
+    -----------------------------------------------------------------------------------------*/
+    class Bundle
+    {
+        private memorystreams: Array<MemoryStream> = new Array<MemoryStream>();
+        private stream: MemoryStream = new MemoryStream(MAX_BUFFER);
+
+        private numMessage = 0;
+        private messageLengthBuffer: Uint8Array = null;
+        private messageLength = 0;
+
+        constructor()
+        {
+        }
+
+        //---------------------------------------------------------------------------------
+    }
+    
+
+   /*-----------------------------------------------------------------------------------------
+												KBEngine args
+    -----------------------------------------------------------------------------------------*/
     export class KBEngineArgs
     {
         public address: string = "127.0.0.1";
@@ -982,6 +1021,10 @@ export namespace KBEngine
         public isWss: boolean = false;
     }
 
+
+    /*-----------------------------------------------------------------------------------------
+												KBEngine app
+    -----------------------------------------------------------------------------------------*/
     export class KBEngineApp
     {
         public static app: KBEngineApp = undefined;
