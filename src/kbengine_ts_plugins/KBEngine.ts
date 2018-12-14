@@ -1,5 +1,40 @@
 export namespace KBEngine 
 {
+    function transferArrayBuffer(source: ArrayBuffer, length: number): ArrayBuffer
+    {
+        source = Object(source);
+        var dest = new ArrayBuffer(length);
+        
+        if(!(source instanceof ArrayBuffer) || !(dest instanceof ArrayBuffer)) {
+            throw new TypeError("ArrayBuffer.transfer, error: Source and destination must be ArrayBuffer instances");
+        }
+        
+        if(dest.byteLength >= source.byteLength) {
+            var buf = new Uint8Array(dest);
+            buf.set(new Uint8Array(source), 0);
+        }
+        else {
+            throw new RangeError("ArrayBuffer.transfer, error: destination has not enough space");
+        }
+        
+        return dest;
+    };
+
+    /*-----------------------------------------------------------------------------------------
+												global
+    -----------------------------------------------------------------------------------------*/
+    const PACKET_MAX_SIZE           = 1500;
+    const PACKET_MAX_SIZE_TCP	    = 1460;
+    const PACKET_MAX_SIZE_UDP	    = 1472;
+
+    const MESSAGE_ID_LENGTH		    = 2;
+    const MESSAGE_LENGTH_LENGTH	    = 2;
+    const MESSAGE_LENGTH1_LENGTH    = 4;
+    const MESSAGE_MAX_SIZE		    = 65535;
+
+    const CLIENT_NO_FLOAT		    = 0;
+    const KBE_FLT_MAX			    = 3.402823466e+38;
+
     export const enum DEBUGLEVEL
 	{
 		DEBUG = 0,
@@ -80,6 +115,9 @@ export namespace KBEngine
         }
     }
 
+    /*-----------------------------------------------------------------------------------------
+												event
+    -----------------------------------------------------------------------------------------*/
     export const enum KBEventTypes 
     {
         // Create new account.
@@ -409,8 +447,10 @@ export namespace KBEngine
         }
     }
 
-    
 
+    /*-----------------------------------------------------------------------------------------
+												network
+    -----------------------------------------------------------------------------------------*/
     class NetworkInterface
     {
         private socket: WebSocket = undefined;
@@ -480,22 +520,10 @@ export namespace KBEngine
         }
     }
 
-    class PackFloatXType
-    {
-        private _unionData: ArrayBuffer;
-        fv: Float32Array;
-        uv: Uint32Array;
-        iv: Int32Array;
 
-        constructor()
-        {
-            this._unionData = new ArrayBuffer(4);
-            this.fv = new Float32Array(this._unionData, 0, 1);
-            this.uv = new Uint32Array(this._unionData, 0, 1);
-            this.iv = new Int32Array(this._unionData, 0, 1);
-        }
-    }
-
+    /*-----------------------------------------------------------------------------------------
+												number64bits
+    -----------------------------------------------------------------------------------------*/
     class INT64
     {
         low: number;
@@ -532,6 +560,26 @@ export namespace KBEngine
         {
             this.low = p_low >>> 0;
             this.high = p_high;
+        }
+    }
+
+
+    /*-----------------------------------------------------------------------------------------
+												memorystream
+    -----------------------------------------------------------------------------------------*/
+    class PackFloatXType
+    {
+        private _unionData: ArrayBuffer;
+        fv: Float32Array;
+        uv: Uint32Array;
+        iv: Int32Array;
+
+        constructor()
+        {
+            this._unionData = new ArrayBuffer(4);
+            this.fv = new Float32Array(this._unionData, 0, 1);
+            this.uv = new Uint32Array(this._unionData, 0, 1);
+            this.iv = new Int32Array(this._unionData, 0, 1);
         }
     }
 
@@ -613,6 +661,315 @@ export namespace KBEngine
             return new INT64(this.readUint32(), this.readUint32());
         }
 
+        readFloat(): number
+        {
+            let buf: Float32Array = undefined;
+            try
+            {
+                buf = new Float32Array(this.buffer, this.rpos, 1);
+            }
+            catch(e)
+            {
+                buf = new Float32Array(this.buffer.slice(this.rpos, this.rpos + 4));
+            }
+            
+            this.rpos += 4;
+
+            return buf[0];
+        }
+
+        readDouble(): number
+        {
+            let buf: Float64Array = undefined;
+            try
+            {
+                buf = new Float64Array(this.buffer, this.rpos, 1);
+            }
+            catch(e)
+            {
+                buf = new Float64Array(this.buffer.slice(this.rpos, this.rpos + 8), 0, 1);
+            }
+            
+            this.rpos += 8;
+            return buf[0];
+        }
+
+        readString(): string
+        {
+            let buf = new Int8Array(this.buffer, this.rpos);
+            let value: string = "";
+            let index: number = 0;
+            
+            while(true)
+            {
+                if(buf[index] != 0 )
+                {
+                    value += String.fromCharCode(buf[index]);
+                    index += 1;
+                    if(this.rpos + index >= this.buffer.byteLength)
+                    {
+                        throw(new Error("KBEngine.MemoryStream::ReadString overflow(>=) max length:" + this.buffer.byteLength));
+                    }
+                }
+                else
+                {
+                    index += 1;
+                    break;
+                }
+            }
+
+            this.rpos += index;
+            return value;
+        }
+    
+        readBlob(): Uint8Array
+        {
+            let size = this.readUint32();
+            let buf = new Uint8Array(this.buffer, this.rpos, size);
+            this.rpos += size;
+            return buf;
+        }
+
+        readPackXZ(): Array<number>
+        {
+            let xPackData = new PackFloatXType();
+            let zPackData = new PackFloatXType();
+    
+            xPackData.fv[0] = 0.0;
+            zPackData.fv[0] = 0.0;
+    
+            xPackData.uv[0] = 0x40000000;
+            zPackData.uv[0] = 0x40000000;
+            let v1 = this.readUint8();
+            let v2 = this.readUint8();
+            let v3 = this.readUint8();
+    
+            let data = 0;
+            data |= (v1 << 16);
+            data |= (v2 << 8);
+            data |= v3;
+    
+            xPackData.uv[0] |= (data & 0x7ff000) << 3;
+            zPackData.uv[0] |= (data & 0x0007ff) << 15;
+    
+            xPackData.fv[0] -= 2.0;
+            zPackData.fv[0] -= 2.0;
+        
+            xPackData.uv[0] |= (data & 0x800000) << 8;
+            zPackData.uv[0] |= (data & 0x000800) << 20;
+            
+            let xzData = new Array(2);
+            xzData[0] = xPackData.fv[0];
+            xzData[1] = zPackData.fv[0];
+            return xzData;
+        }
+
+        readPackY(): number
+        {
+            let data = this.readUint16();
+            
+            let yPackData = new PackFloatXType();
+            yPackData.uv[0] = 0x40000000;
+            yPackData.uv[0] |= (data & 0x7fff) << 12;   // 解压，补足尾数
+            yPackData.fv[0] -= 2.0;                     // 此时还未设置符号位，当作正数处理，-2后再加上符号位即可，无需根据正负来+-2
+            yPackData.uv[0] |= (data & 0x8000) << 16;   // 设置符号位
+
+            return yPackData.fv[0];
+        }
+
+        writeInt8(value: number): void
+        {
+            let buf = new Int8Array(this.buffer, this.wpos, 1);
+            buf[0] = value;
+            this.wpos += 1;
+        }
+
+        writeUint8(value: number): void
+        {
+            let buf = new Uint8Array(this.buffer, this.wpos, 1);
+            buf[0] = value;
+            this.wpos += 1;
+        }
+
+        writeInt16(value: number): void
+        {
+            this.writeInt8(value & 0xff);
+            this.writeInt8((value >> 8) & 0xff);
+        }
+
+        writeUint16(value: number): void
+        {
+            this.writeUint8(value & 0xff);
+            this.writeUint8((value >> 8) & 0xff);
+        }
+
+        writeInt32(value: number): void
+        {
+            for(let i = 0; i < 4; i++)
+                this.writeInt8((value >> i * 8) & 0xff);
+        }
+
+        writeUint32(value: number): void
+        {
+            for(let i = 0; i < 4; i++)
+                this.writeInt8((value >> i*8) & 0xff);
+        }
+
+        writeInt64(value: INT64): void
+        {
+            this.writeInt32(value.low);
+            this.writeInt32(value.high);
+        }
+
+        writeUint64(value: UINT64): void
+        {
+            this.writeUint32(value.low);
+            this.writeUint32(value.high);
+        }
+
+        writeFloat(value: number): void
+        {
+            try
+            {
+                let buf = new Float32Array(this.buffer, this.wpos, 1);
+                buf[0] = value;
+            }
+            catch(e)
+            {
+                let buf = new Float32Array(1);
+                buf[0] = value;
+                let buf1 = new Uint8Array(this.buffer);
+                let buf2 = new Uint8Array(buf.buffer);
+                buf1.set(buf2, this.wpos);
+            }
+    
+            this.wpos += 4;
+        }
+    
+        writeDouble(value: number): void
+        {
+            try
+            {
+                let buf = new Float64Array(this.buffer, this.wpos, 1);
+                buf[0] = value;
+            }
+            catch(e)
+            {
+                let buf = new Float64Array(1);
+                buf[0] = value;
+                let buf1 = new Uint8Array(this.buffer);
+                let buf2 = new Uint8Array(buf.buffer);
+                buf1.set(buf2, this.wpos);
+            }
+            
+            this.wpos += 8;
+        }
+    
+        writeBlob(value: string|Uint8Array): void
+        {
+            let size = value.length;
+            if(size + 4 > this.space())
+            {
+                Dbg.ERROR_MSG("KBE.MemoryStream:WriteBlob:there is no space for size:%d", size + 4);
+                return;
+            }
+    
+            this.writeUint32(size);
+    
+            let buf = new Uint8Array(this.buffer, this.wpos, size);
+            if(typeof(value) == "string")
+            {
+                for(let i = 0; i < size; i++)
+                {
+                    buf[i] = value.charCodeAt(i);
+                }
+            }
+            else
+            {
+                for(let i = 0; i< size; i++)
+                {
+                    buf[i] = value[i];
+                }
+            }
+    
+            this.wpos += size;
+        }
+
+        writeString(value: string): void
+        {
+
+            if(value.length + 1 > this.space())
+            {
+                Dbg.ERROR_MSG("KBE.MemoryStream:WriteString:there is no space for size:%d", value.length + 1);
+                return;
+            }
+
+            let buf = new Uint8Array(this.buffer, this.wpos, value.length);
+            for(let i = 0; i < value.length; i++)
+            {
+                buf[i] = value.charCodeAt(i);
+            }
+
+            buf[value.length] = 0;
+            this.wpos = this.wpos + value.length + 1;
+        }
+
+        readSkip(count: number): void
+        {
+            this.rpos += count;
+        }
+
+        length(): number
+        {
+            return this.wpos - this.rpos;
+        }
+
+        readEOF(): boolean
+        {
+            return this.buffer.byteLength - this.rpos <= 0;
+        }
+
+        done(): void
+        {
+            this.rpos = this.wpos;
+        }
+
+        getBuffer(): ArrayBuffer
+        {
+            return this.buffer.slice(this.rpos, this.wpos);
+        }
+    
+        getRawBuffer(): ArrayBuffer
+        {
+            return this.buffer;
+        }
+
+        clear(): void
+        {
+            this.rpos = 0;
+            this.wpos = 0;
+
+            if(this.buffer.byteLength > PACKET_MAX_SIZE)
+                this.buffer = new ArrayBuffer(PACKET_MAX_SIZE);
+        }
+
+        append(stream: MemoryStream, offset: number, size: number): void
+        {
+            if(!(stream instanceof MemoryStream)) 
+            {
+                Dbg.ERROR_MSG("MemoryStream::append(): stream must be MemoryStream instances");
+                return;
+            }
+
+            if(size > this.space())
+            {
+                this.buffer = transferArrayBuffer(this.buffer, this.buffer.byteLength + size * 2);
+            }
+
+            var buf = new Uint8Array(this.buffer, this.wpos, size);
+            buf.set(new Uint8Array(stream.buffer, offset, size), 0);
+            this.wpos += size;
+        }
     }
 
     export class KBEngineArgs
