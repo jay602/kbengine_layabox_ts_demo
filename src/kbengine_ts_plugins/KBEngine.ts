@@ -1864,6 +1864,52 @@ class DATATYPE_FIXED_DICT extends DATATYPE_BASE
 var datatypes = {};
 var idToDatatype: {[key: number]: DATATYPE_BASE} = {};
 
+function initDatatypeMapping()
+{
+    datatypes["UINT8"] = new DATATYPE_UINT8();
+    datatypes["UINT16"] = new DATATYPE_UINT16();
+    datatypes["UINT32"] = new DATATYPE_UINT32();
+    datatypes["UINT64"] = new DATATYPE_UINT64();
+    
+    datatypes["INT8"] = new DATATYPE_INT8();
+    datatypes["INT16"] = new DATATYPE_INT16();
+    datatypes["INT32"] = new DATATYPE_INT32();
+    datatypes["INT64"] = new DATATYPE_INT64();
+    
+    datatypes["FLOAT"] = new DATATYPE_FLOAT();
+    datatypes["DOUBLE"] = new DATATYPE_DOUBLE();
+    
+    datatypes["STRING"] = new DATATYPE_STRING();
+    datatypes["VECTOR2"] = new DATATYPE_VECTOR2();
+    datatypes["VECTOR3"] = new DATATYPE_VECTOR3();
+    datatypes["VECTOR4"] = new DATATYPE_VECTOR4();
+    datatypes["PYTHON"] = new DATATYPE_PYTHON();
+    datatypes["UNICODE"] = new DATATYPE_UNICODE();
+    datatypes["ENTITYCALL"] = new DATATYPE_ENTITYCALL();
+    datatypes["BLOB"] = new DATATYPE_BLOB();
+
+    idToDatatype[1] = datatypes["STRING"];
+    idToDatatype[2] = datatypes["UINT8"];
+    idToDatatype[3] = datatypes["UINT16"];
+    idToDatatype[4] = datatypes["UINT32"];
+    idToDatatype[5] = datatypes["UINT64"];
+
+    idToDatatype[6] = datatypes["INT8"];
+    idToDatatype[7] = datatypes["INT16"];
+    idToDatatype[8] = datatypes["INT32"];
+    idToDatatype[9] = datatypes["INT64"];
+
+    idToDatatype[10] = datatypes["ENTITYCALL"];
+    idToDatatype[11] = datatypes["BLOB"];
+    idToDatatype[12] = datatypes["UNICODE"];
+    idToDatatype[13] = datatypes["FLOAT"];
+    idToDatatype[14] = datatypes["DOUBLE"];
+    idToDatatype[15] = datatypes["VECTOR2"];
+    idToDatatype[16] = datatypes["VECTOR3"];
+    idToDatatype[17] = datatypes["VECTOR4"];
+}
+
+
 
 class Message
 {
