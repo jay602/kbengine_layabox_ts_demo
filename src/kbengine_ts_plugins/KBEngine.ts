@@ -118,6 +118,93 @@ export class Dbg
 }
 
 /*-----------------------------------------------------------------------------------------
+												string
+-----------------------------------------------------------------------------------------*/
+function utf8ArrayToString(array: Uint8Array): string
+{
+    let out = "";
+    let char1: number;
+    let char2: number;
+    let char3: number;
+
+    for(let i = 0; i < array.length;)
+    {
+        char1 = array[i];
+        switch(char1 >> 4)
+        {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                out += String.fromCharCode(char1);
+                i += 1;
+                break;
+            case 12:
+            case 13:
+                char2 = array[i + 1];
+                out += String.fromCharCode(((char1 & 0x1F) << 6) | (char2 & 0x3F));
+                i += 2;
+                break;
+            case 14:
+                char2 = array[i + 1];
+                char3 = array[i + 2];
+                out += String.fromCharCode( (char1 & 0x0F) << 12 | (char2 & 0x3F) << 6 | (char3 & 0x3F) << 0);
+                i += 3;
+                break;
+            default:
+                Dbg.ERROR_MSG("UTF8ArrayToString::execute flow shouldnt reach here.");
+        }
+    }
+
+    return out;
+}
+
+function stringToUTF8Array(value: string): Uint8Array
+{
+    let utf8 = new Array<number>();
+
+    for (let i = 0; i < value.length; i++) 
+    {
+        let charcode = value.charCodeAt(i);
+        if (charcode < 0x80) 
+        {
+            utf8.push(charcode);
+        }
+        else if (charcode < 0x800) 
+        {
+            utf8.push(0xc0 | (charcode >> 6), 
+                      0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) 
+        {
+            utf8.push(0xe0 | (charcode >> 12), 
+                      0x80 | ((charcode>>6) & 0x3f), 
+                      0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else
+        {
+            i++;
+            // UTF-16 encodes 0x10000-0x10FFFF by
+            // subtracting 0x10000 and splitting the
+            // 20 bits of 0x0-0xFFFFF into two halves
+            charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+                      | (value.charCodeAt(i) & 0x3ff))
+            utf8.push(0xf0 | (charcode >>18), 
+                      0x80 | ((charcode>>12) & 0x3f), 
+                      0x80 | ((charcode>>6) & 0x3f), 
+                      0x80 | (charcode & 0x3f));
+        }
+    }
+
+    return new Uint8Array(utf8);
+}
+
+/*-----------------------------------------------------------------------------------------
                                             event
 -----------------------------------------------------------------------------------------*/
 export const enum KBEventTypes 
@@ -1568,6 +1655,214 @@ class DATATYPE_VECTOR4 extends DATATYPE_BASE
     }
 }
 
+class DATATYPE_PYTHON extends DATATYPE_BASE
+{
+    createFromStream(stream: MemoryStream): any
+    {
+        return stream.readBlob();
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        stream.writeBlob(value);
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return new Uint8Array(0);
+    }
+
+    isSameType(value: any): boolean
+    {
+        return false;
+    }
+}
+
+class DATATYPE_UNICODE extends DATATYPE_BASE
+{
+    createFromStream(stream: MemoryStream): any
+    {
+        return utf8ArrayToString(stream.readBlob());
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        stream.writeBlob(value);
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return value;
+    }
+
+    isSameType(value: any): boolean
+    {
+        return typeof value === "string";
+    }
+}
+
+class DATATYPE_ENTITYCALL extends DATATYPE_BASE
+{
+    createFromStream(stream: MemoryStream): any
+    {
+        var cid = stream.readInt32();
+        var id = stream.readUint64();
+        var type = stream.readUint16();
+        var utype = stream.readUint16();
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        var cid = new UINT64(0, 0);
+		var id = 0;
+		var type = 0;
+		var utype = 0;
+
+		stream.writeUint64(cid);
+		stream.writeInt32(id);
+		stream.writeUint16(type);
+		stream.writeUint16(utype);
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return new Uint8Array(0);
+    }
+
+    isSameType(value: any): boolean
+    {
+        return false;
+    }
+}
+
+class DATATYPE_BLOB extends DATATYPE_BASE
+{
+    createFromStream(stream: MemoryStream): any
+    {
+        return stream.readBlob();
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        stream.writeBlob(value);
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return new Uint8Array(0);
+    }
+
+    isSameType(value: any): boolean
+    {
+        return false;
+    }
+}
+
+
+class DATATYPE_ARRAY extends DATATYPE_BASE
+{
+    type: any;
+
+    bind()
+    {
+        if(typeof(this.type) == "number")
+            this.type = datatypes[this.type];
+    }
+    
+    createFromStream(stream: MemoryStream): any
+    {
+        let size = stream.readUint32();
+        let items = [];
+        while(size-- > 0)
+        {
+            items.push(this.type.createFromStream(stream));
+        }
+        
+        return items;
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        stream.writeUint32(value.length);
+        for(let i = 0; i < value.length; i++)
+        {
+            this.type.addToStream(stream, value[i]);
+        }
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return [];
+    }
+
+    isSameType(value: any): boolean
+    {
+        for(let i = 0; i < value.length; i++)
+        {
+            if(!this.type.isSameType(value[i]))
+                return false;
+        }
+
+        return true;
+    }
+}
+
+class DATATYPE_FIXED_DICT extends DATATYPE_BASE
+{
+    dictType: {[key: string]: any} = {};
+    implementedBy: string;
+
+    bind()
+    {
+        for(let key in this.dictType)
+        {
+            //KBEDebug.DEBUG_MSG("DATATYPE_FIXED_DICT::Bind------------------->>>show (key:%s, value:%s).", key, this.dictType[key]);
+            if(typeof(this.dictType[key]) == "number")
+            {
+                let utype = Number(this.dictType[key]);
+                this.dictType[key] = datatypes[utype];
+            }
+        }
+    }
+
+    createFromStream(stream: MemoryStream): {[key: string]: any}
+    {
+        let datas = {};
+        for(let key in this.dictType)
+        {
+            Dbg.DEBUG_MSG("DATATYPE_FIXED_DICT::CreateFromStream------------------->>>FIXED_DICT(key:%s).", key);
+            datas[key] = this.dictType[key].createFromStream(stream);
+        }
+
+        return datas;
+    }
+
+    addToStream(stream: MemoryStream, value: any): void
+    {
+        for(let key in this.dictType)
+        {
+            this.dictType[key].addToStream(stream, value[key]);
+        }
+    }
+
+    parseDefaultValStr(value: string): any
+    {
+        return {};
+    }
+
+    isSameType(value: any): boolean
+    {
+        for(let key in this.dictType)
+        {
+            if(!this.dictType[key].isSameType(value[key]))
+                return false;
+        }
+        return true;
+    }
+}
+
+var datatypes = {};
+var idToDatatype: {[key: number]: DATATYPE_BASE} = {};
 
 
 class Message
