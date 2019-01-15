@@ -1816,7 +1816,6 @@ class DATATYPE_FIXED_DICT extends DATATYPE_BASE
     {
         for(let key in this.dictType)
         {
-            //KBEDebug.DEBUG_MSG("DATATYPE_FIXED_DICT::Bind------------------->>>show (key:%s, value:%s).", key, this.dictType[key]);
             if(typeof(this.dictType[key]) == "number")
             {
                 let utype = Number(this.dictType[key]);
@@ -1935,12 +1934,44 @@ class Message
 
     private createFromStream(stream: MemoryStream)
     {
-        
+        if(this.args.length <= 0)
+            return stream;
+
+        let result = [];
+        for(let item of this.args)
+        {
+            result.push(item.createFromStream(stream));
+        }
+
+        return result;
     }
 
     handleMessage(stream: MemoryStream): void
     {
+        Dbg.DEBUG_MSG("KBEngine.Message::handleMessage:name(%s), this.args.length(%d), this.argsType(%d).", this.name, this.args.length, this.argsType);
 
+        if(this.handler === undefined)
+        {
+            Dbg.ERROR_MSG("KBEngine.Message::handleMessage: interface(" + this.name + "/" + this.id + ") no implement!");
+            return;
+        }
+
+        if(this.args.length === 0)
+        {
+            if(this.argsType < 0)
+            {
+                this.handler.call(KBEngineApp.app, stream);
+            }
+            else
+            {
+                this.handler.call(KBEngineApp.app);
+            }
+        }
+        else
+        {
+            this.handler.apply(KBEngineApp.app, this.createFromStream(stream));
+        }
+    }
     }
 }
 
